@@ -3,10 +3,10 @@
 Muestra precios en bolívares al cambio oficial del día, en cualquier web.
 Módulo sin dependencias + guía paso a paso para quien no programa.
 
-**[→ Ver la demo en vivo](https://TU-USUARIO.github.io/tasa-bcv/)** ·
+**[→ Ver la demo en vivo](https://josephamselem2-ai.github.io/tasa-bcv/)** ·
 21 tests · sin dependencias de runtime · MIT
 
-<!-- Sustituye TU-USUARIO por tu usuario de GitHub cuando actives Pages. -->
+<!-- La demo se publica sola con .github/workflows/pages.yml -->
 
 ![La guía funcionando](demo/capturas/guia-completa.png)
 
