@@ -17,20 +17,32 @@ const SALIDA = fileURLToPath(new URL('../demo/og.png', import.meta.url));
 const ANCHO = 1200;
 const ALTO = 630;
 
+// El peso manda sobre la nitidez. WhatsApp solo enseña la vista previa GRANDE
+// si la imagen es ligera; por encima de ~300 KB la degrada a miniatura. Por eso
+// se renderiza a 1x (los 1200x630 exactos) y no a 2x: a 2x pesaba 529 KB y
+// WhatsApp la rechazaba.
+const LIMITE_WHATSAPP = 300 * 1024;
+
 const navegador = await chromium.launch();
 const pagina = await navegador.newPage({
   viewport: { width: ANCHO, height: ALTO },
-  deviceScaleFactor: 2,   // el doble de nitidez en pantallas retina
+  deviceScaleFactor: 1,
 });
 
 await pagina.goto(`file://${PLANTILLA}`, { waitUntil: 'networkidle' });
 await pagina.screenshot({ path: SALIDA, clip: { x: 0, y: 0, width: ANCHO, height: ALTO } });
 await navegador.close();
 
-const { size } = await import('node:fs').then((fs) => fs.statSync(SALIDA));
-console.log(`demo/og.png · ${ANCHO}x${ALTO} · ${(size / 1024).toFixed(0)} KB`);
+const { statSync } = await import('node:fs');
+const { size } = statSync(SALIDA);
+const kb = (size / 1024).toFixed(0);
 
-// WhatsApp descarta las vistas previas de más de 600 KB.
-if (size > 600 * 1024) {
-  console.warn('AVISO: pesa más de 600 KB; WhatsApp puede no mostrar la vista previa.');
+if (size > LIMITE_WHATSAPP) {
+  console.error(`demo/og.png · ${ANCHO}x${ALTO} · ${kb} KB`);
+  console.error(`FALLO: supera los ${LIMITE_WHATSAPP / 1024} KB. WhatsApp la degradará`);
+  console.error('a miniatura. Simplifica el fondo de scripts/og-card.html (los');
+  console.error('degradados engordan mucho el PNG) o baja el tamaño del texto.');
+  process.exit(1);
 }
+
+console.log(`demo/og.png · ${ANCHO}x${ALTO} · ${kb} KB · vista previa grande OK`);
