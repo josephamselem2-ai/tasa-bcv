@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<!--
+  SEO. IMPORTANTE: cambia TU-DOMINIO.com por el dominio real antes de publicar.
+  Con el placeholder puesto, canonical y og:url apuntan a un sitio inexistente,
+  que es peor que no ponerlos.
+-->
+<title>Cómo poner la tasa del BCV en tu web (gratis, sin registro) — 2026</title>
+<meta name="description" content="Muestra tus precios en bolívares al cambio oficial del BCV, actualizado solo. Bloque para copiar y pegar en WordPress, Wix, Shopify o Squarespace. Gratis.">
+<link rel="canonical" href="https://TU-DOMINIO.com/tasa-bcv">
+
+<meta property="og:type" content="article">
+<meta property="og:locale" content="es_VE">
+<meta property="og:title" content="Cómo poner la tasa del BCV en tu web">
+<meta property="og:description" content="Copia un bloque, pégalo en tu web y tus precios se ven en bolívares al cambio del día. Sin registro ni clave.">
+<meta property="og:url" content="https://TU-DOMINIO.com/tasa-bcv">
+<meta property="og:image" content="https://TU-DOMINIO.com/tasa-bcv/portada.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- Datos estructurados: es lo que hace que Google enseñe los pasos numerados
+     directamente en el resultado de búsqueda. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "Cómo mostrar la tasa del BCV en tu web",
+  "description": "Añade a tu página el precio en bolívares al cambio oficial del BCV, actualizado automáticamente.",
+  "inLanguage": "es-VE",
+  "totalTime": "PT5M",
+  "estimatedCost": { "@type": "MonetaryAmount", "currency": "USD", "value": "0" },
+  "step": [
+    {
+      "@type": "HowToStep",
+      "position": 1,
+      "name": "Copia el bloque de código",
+      "text": "Copia el bloque HTML que consulta la tasa oficial del BCV. No requiere registro ni clave de API."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 2,
+      "name": "Pégalo en tu web",
+      "text": "En WordPress usa un bloque HTML personalizado; en Wix, Insertar HTML; en Squarespace, un bloque Code; en Shopify, una sección de HTML personalizado."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 3,
+      "name": "Comprueba que se ve",
+      "text": "Abre tu web. Mostrará el texto de política un instante y lo sustituirá por la cifra en bolívares."
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "¿Es gratis mostrar la tasa del BCV en mi web?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Sí. Los datos vienen de DolarAPI, que es gratuito y no pide registro ni clave de API." }
+    },
+    {
+      "@type": "Question",
+      "name": "¿Es la tasa oficial del BCV o la del paralelo?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Es la tasa oficial del Banco Central de Venezuela. Si tu negocio cobra a otra tasa, esta cifra no te sirve tal cual." }
+    },
+    {
+      "@type": "Question",
+      "name": "¿Qué pasa si la API se cae?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No se muestra ninguna cifra: queda el texto \"Al cambio del BCV del día\". Nunca se enseña una tasa vieja o inventada, porque un cliente que transfiere de menos es un problema real." }
+    },
+    {
+      "@type": "Question",
+      "name": "¿Necesito un programador?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No, si tu web te deja insertar un bloque de código (WordPress, Wix, Squarespace, Shopify). Sí, si es una aplicación hecha a medida en Next.js o React." }
+    }
+  ]
+}
+</script>
+<style>
+  /* Paleta a propósito distinta de la guía: índigo y ámbar, no verde.
+     Así se distingue de un vistazo cuál estás mirando. */
+  :root {
+    --ground:#f7f7fb; --surface:#fff; --surface-2:#eeeef6; --ink:#191a26;
+    --muted:#5f6178; --accent:#4338ca; --accent-soft:#e4e2fb;
+    --live:#0f7a4d; --live-soft:#d8f0e4;
+    --warn:#9a5b18; --warn-soft:#fbeeda; --line:#e0e0ec;
+    --code-bg:#191a26; --code-ink:#e6e6f2; --code-dim:#8688a8;
+    --code-key:#a5b4fc; --code-str:#fcd9a0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:#0f1018; --surface:#181925; --surface-2:#212234; --ink:#e9e9f4;
+      --muted:#9698b4; --accent:#a5b4fc; --accent-soft:#252545;
+      --live:#5fd39b; --live-soft:#12301f;
+      --warn:#e0a56b; --warn-soft:#2e2317; --line:#2a2b3d;
+      --code-bg:#0b0c14; --code-ink:#e6e6f2; --code-dim:#767892;
+    }
+  }
+  * { box-sizing:border-box }
+  body {
+    margin:0; background:var(--ground); color:var(--ink);
+    font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:52rem; margin:0 auto; padding:2.5rem 1.25rem 6rem }
+  h1,h2,h3 { font-family:Georgia,"Iowan Old Style",serif; font-weight:600; margin:0; letter-spacing:-.01em; text-wrap:balance }
+  h1 { font-size:clamp(1.8rem,4.5vw,2.5rem); line-height:1.15 }
+  h2 { font-size:1.35rem; line-height:1.3 }
+  h3 { font-size:1rem }
+  p { margin:0; max-width:64ch }
+  a { color:var(--accent) }
+  code,pre,.mono { font-family:ui-monospace,"Cascadia Code","SF Mono",Menlo,Consolas,monospace }
+  :is(p,li,td) > code { background:var(--surface-2); border-radius:4px; padding:.1em .36em; font-size:.88em }
+
+  .en-vivo {
+    display:inline-flex; align-items:center; gap:.45rem; font-size:.7rem; font-weight:700;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--live);
+    background:var(--live-soft); padding:.3rem .7rem; border-radius:999px;
+  }
+  .punto { width:.45rem; height:.45rem; border-radius:50%; background:var(--live); animation:latir 2s infinite }
+  @keyframes latir { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+  header { display:flex; flex-direction:column; gap:.9rem; margin-bottom:2.5rem }
+  .entradilla { color:var(--muted); font-size:1.06rem }
+
+  .panel { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:1.4rem 1.5rem }
+  .seccion { margin-top:3rem; display:flex; flex-direction:column; gap:1rem }
+
+  /* --- Hero de la tasa --- */
+  .hero { display:flex; flex-wrap:wrap; gap:1.5rem 2.5rem; align-items:flex-end; justify-content:space-between }
+  .tasa-grande { font-size:clamp(2.4rem,7vw,3.4rem); font-variant-numeric:tabular-nums; line-height:1 }
+  .meta { color:var(--muted); font-size:.87rem; margin-top:.45rem }
+  .estado { display:inline-block; font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; padding:.18rem .55rem;
+            border-radius:999px; font-weight:700; background:var(--live-soft); color:var(--live); margin-left:.4rem }
+  .estado[data-source="fallback"] { background:var(--warn-soft); color:var(--warn) }
+
+  .calculadora { display:flex; flex-direction:column; gap:.5rem; min-width:15rem }
+  .calculadora label { font-size:.72rem; letter-spacing:.09em; text-transform:uppercase; color:var(--muted) }
+  .fila-calc { display:flex; align-items:baseline; gap:.5rem }
+  .fila-calc input {
+    font:inherit; font-size:1.15rem; width:7.5rem; padding:.4rem .6rem; border-radius:8px;
+    border:1px solid var(--line); background:var(--ground); color:var(--ink); font-variant-numeric:tabular-nums;
+  }
+  .fila-calc input:focus { outline:2px solid var(--accent); outline-offset:1px }
+  .resultado { font-size:1.15rem; font-variant-numeric:tabular-nums; color:var(--accent); font-weight:600 }
+  .resultado.sin-tasa { color:var(--muted); font-weight:400; font-style:italic; font-size:.95rem }
+
+  button {
+    font:inherit; font-size:.88rem; padding:.5rem .9rem; border-radius:8px; cursor:pointer;
+    border:1px solid var(--line); background:var(--surface-2); color:var(--ink);
+  }
+  button:hover { border-color:var(--accent); color:var(--accent) }
+  .controles { display:flex; gap:.6rem; flex-wrap:wrap; margin-top:1.2rem }
+
+  /* --- Pasos --- */
+  .pasos { display:flex; flex-direction:column; gap:2.5rem; margin-top:1.5rem }
+  .paso { display:grid; grid-template-columns:2.3rem 1fr; gap:0 1.1rem; align-items:start }
+  .numero {
+    font-family:ui-monospace,Menlo,monospace; font-size:.85rem; font-weight:700; color:var(--accent);
+    background:var(--accent-soft); border-radius:50%; width:2.1rem; height:2.1rem; display:grid; place-items:center;
+  }
+  .paso-cuerpo { display:flex; flex-direction:column; gap:.8rem; min-width:0 }
+  @media (max-width:34rem) { .paso { grid-template-columns:1fr; gap:.7rem } }
+
+  /* --- Código + copiar --- */
+  .caja-codigo { position:relative }
+  pre {
+    margin:0; background:var(--code-bg); color:var(--code-ink); padding:1.1rem 1.2rem; border-radius:10px;
+    overflow-x:auto; font-size:.8rem; line-height:1.7;
+  }
+  pre .c { color:var(--code-dim); font-style:italic }
+  pre .k { color:var(--code-key) }
+  pre .s { color:var(--code-str) }
+  .btn-copiar {
+    position:absolute; top:.65rem; right:.65rem; background:rgba(255,255,255,.1); color:#e6e6f2;
+    border-color:rgba(255,255,255,.2); font-size:.78rem; padding:.35rem .7rem; backdrop-filter:blur(4px);
+  }
+  .btn-copiar:hover { background:rgba(255,255,255,.2); color:#fff; border-color:rgba(255,255,255,.35) }
+  .btn-copiar[data-hecho="si"] { background:var(--live); border-color:var(--live); color:#fff }
+
+  /* --- Pestañas de plataforma --- */
+  .pestanas { display:flex; flex-wrap:wrap; gap:.4rem }
+  .pestanas button[aria-selected="true"] { background:var(--accent); border-color:var(--accent); color:#fff }
+  .panel-plataforma { background:var(--surface-2); border-radius:10px; padding:1rem 1.2rem; font-size:.95rem }
+  .panel-plataforma ol { margin:0; padding-left:1.2rem; display:flex; flex-direction:column; gap:.4rem }
+  .panel-plataforma p { margin:0 0 .6rem; color:var(--muted); font-size:.9rem }
+
+  /* --- Vista previa --- */
+  .previa {
+    border:2px dashed var(--line); border-radius:10px; padding:1.5rem; text-align:center; background:var(--ground);
+  }
+  .previa-etiqueta { font-size:.68rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:.6rem }
+  .previa-precio { font-size:1.3rem; font-variant-numeric:tabular-nums }
+  .previa-precio small { display:block; color:var(--accent); font-size:.95rem; margin-top:.15rem }
+
+  /* --- Avisos y reglas --- */
+  .aviso { border-left:3px solid var(--warn); background:var(--warn-soft); padding:.85rem 1.1rem; border-radius:0 8px 8px 0; font-size:.93rem }
+  .aviso strong { color:var(--warn) }
+  .reglas { display:grid; grid-template-columns:repeat(auto-fit,minmax(16rem,1fr)); gap:.9rem }
+  .regla { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:1rem 1.15rem }
+  .regla .marca { font-family:ui-monospace,Menlo,monospace; font-size:.75rem; color:var(--accent); font-weight:700 }
+  .regla strong { display:block; margin:.2rem 0 .3rem }
+  .regla p { font-size:.9rem; color:var(--muted) }
+
+  table.ruta { width:100%; border-collapse:collapse; font-size:.94rem }
+  table.ruta th { text-align:left; font-size:.68rem; letter-spacing:.11em; text-transform:uppercase; color:var(--muted);
+                  font-weight:400; padding:0 0 .6rem; border-bottom:1px solid var(--line) }
+  table.ruta td { padding:.8rem .8rem .8rem 0; border-bottom:1px solid var(--line); vertical-align:top }
+  table.ruta tr:last-child td { border-bottom:0 }
+  .marca-no { font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; padding:.2rem .55rem; border-radius:999px;
+              background:var(--live-soft); color:var(--live); font-weight:700; white-space:nowrap }
+  .marca-si { font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; padding:.2rem .55rem; border-radius:999px;
+              background:var(--surface-2); color:var(--muted); font-weight:700; white-space:nowrap }
+  .tabla-scroll { overflow-x:auto }
+
+  details { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:1rem 1.3rem }
+  details[open] { padding-bottom:1.4rem }
+  summary { cursor:pointer; font-family:Georgia,serif; font-size:1.1rem; font-weight:600 }
+  summary::marker { color:var(--accent) }
+  details .contenido { display:flex; flex-direction:column; gap:.9rem; margin-top:1rem }
+
+  hr { border:0; border-top:1px solid var(--line); margin:3rem 0 0 }
+  footer { margin-top:3rem; color:var(--muted); font-size:.85rem }
+  .archivo { font-family:ui-monospace,Menlo,monospace; font-size:.72rem; color:var(--muted) }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="en-vivo"><span class="punto"></span> En vivo · datos reales</span>
+    <h1>Pon la tasa del BCV en tu web</h1>
+    <p class="entradilla">
+      Que tus precios en dólares se vean también en bolívares, al cambio del día
+      y actualizados solos. Esta misma página lo está haciendo ahora mismo.
+      Copia el bloque, pégalo en tu web, listo.
+    </p>
+  </header>
+
+  <!-- ================= HERO: la tasa de verdad ================= -->
+  <div class="panel">
+    <div class="hero">
+      <div>
+        <div class="tasa-grande" id="tasa">…</div>
+        <div class="meta">
+          <span id="fecha">consultando…</span>
+          <span class="estado" id="estado">—</span>
+        </div>
+      </div>
+
+      <div class="calculadora">
+        <label for="usd">Pruébalo con tu precio</label>
+        <div class="fila-calc">
+          <span>$</span>
+          <input id="usd" type="number" min="0" step="0.01" value="49.90" inputmode="decimal">
+          <span aria-hidden="true">→</span>
+        </div>
+        <div class="resultado" id="resultado">…</div>
+      </div>
+    </div>
+
+    <div class="controles">
+      <button id="recargar">Volver a consultar</button>
+      <button id="romper">Ver qué pasa si la API se cae</button>
+    </div>
+  </div>
+
+  <!-- ================= ¿CUÁL TE TOCA? ================= -->
+  <section class="seccion">
+    <h2>Empieza por aquí: ¿cuál te toca?</h2>
+    <p style="color:var(--muted)">Busca cómo está hecha tu web y ve directo a lo tuyo.</p>
+
+    <div class="tabla-scroll">
+      <table class="ruta">
+        <thead>
+          <tr><th>Si tu web es…</th><th>Necesitas</th><th>¿Programador?</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>WordPress, Wix, Squarespace, Shopify</strong><br>
+                <small style="color:var(--muted)">o cualquiera que te deje insertar un bloque de código</small></td>
+            <td><a href="#pasos">Los 3 pasos de abajo</a></td>
+            <td><span class="marca-no">No</span></td>
+          </tr>
+          <tr>
+            <td><strong>HTML a mano</strong><br>
+                <small style="color:var(--muted)">tu propio archivo .html</small></td>
+            <td><a href="#pasos">Los 3 pasos de abajo</a></td>
+            <td><span class="marca-no">No</span></td>
+          </tr>
+          <tr>
+            <td><strong>Next.js, React, Vue, Astro…</strong><br>
+                <small style="color:var(--muted)">una aplicación hecha a medida</small></td>
+            <td><a href="#desarrolladores">La versión para desarrolladores</a></td>
+            <td><span class="marca-si">Sí</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= LOS 3 PASOS ================= -->
+  <section class="seccion" id="pasos">
+    <h2>Añádelo a tu web en 3 pasos</h2>
+    <p style="color:var(--muted)">
+      No hace falta instalar nada, ni registrarse, ni pedir ninguna clave. Es gratis.
+    </p>
+
+    <div class="pasos">
+
+      <!-- Paso 1 -->
+      <div class="paso">
+        <div class="numero">1</div>
+        <div class="paso-cuerpo">
+          <h3>Copia este bloque</h3>
+          <p>Es todo lo que necesitas. Dale al botón y ya lo tienes en el portapapeles.</p>
+          <div class="caja-codigo">
+            <button class="btn-copiar" id="copiar" data-objetivo="#snippet">Copiar</button>
+            <pre><code id="snippet">&lt;span id="tasa-bcv"&gt;Al cambio del BCV del día&lt;/span&gt;
+
+&lt;script&gt;
+async function pintarTasaBcv() {
+  const c = new AbortController();
+  const t = setTimeout(() =&gt; c.abort(), 5000);
+  try {
+    const r = await fetch('https://ve.dolarapi.com/v1/dolares/oficial',
+                          { signal: c.signal });
+    if (!r.ok) return;
+    const d = await r.json();
+    const tasa = d?.promedio;
+    // NO BORRES ESTA LÍNEA: comprueba que la tasa sea razonable.
+    if (typeof tasa !== 'number' || !isFinite(tasa)
+        || tasa &lt;= 0 || tasa &gt; 1000000) return;
+
+    document.getElementById('tasa-bcv').textContent =
+      'Bs. ' + tasa.toLocaleString('es-VE', { minimumFractionDigits: 2 });
+  } catch {
+    // Si falla, se queda el texto de siempre. No se inventa nada.
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+pintarTasaBcv();
+setInterval(pintarTasaBcv, 3600000);
+&lt;/script&gt;</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Paso 2 -->
+      <div class="paso">
+        <div class="numero">2</div>
+        <div class="paso-cuerpo">
+          <h3>Pégalo donde quieras que salga la tasa</h3>
+          <p>Elige tu plataforma:</p>
+
+          <div class="pestanas" role="tablist">
+            <button role="tab" aria-selected="true"  data-plataforma="wordpress">WordPress</button>
+            <button role="tab" aria-selected="false" data-plataforma="wix">Wix</button>
+            <button role="tab" aria-selected="false" data-plataforma="squarespace">Squarespace</button>
+            <button role="tab" aria-selected="false" data-plataforma="shopify">Shopify</button>
+            <button role="tab" aria-selected="false" data-plataforma="html">HTML a mano</button>
+          </div>
+
+          <div class="panel-plataforma" id="panel-plataforma"></div>
+        </div>
+      </div>
+
+      <!-- Paso 3 -->
+      <div class="paso">
+        <div class="numero">3</div>
+        <div class="paso-cuerpo">
+          <h3>Comprueba que se ve</h3>
+          <p>
+            Abre tu web. Durante un instante pondrá <em>«Al cambio del BCV del día»</em>
+            y enseguida lo sustituye por la cifra. Si se queda con el texto, es que la
+            API no respondió: <strong>eso está bien</strong>, es a propósito.
+          </p>
+
+          <div class="previa">
+            <span class="previa-etiqueta">Así se verá en tu web</span>
+            <div class="previa-precio">
+              $49.90
+              <small id="previa-bs">Al cambio del BCV del día</small>
+            </div>
+          </div>
+
+          <div class="aviso">
+            <strong>No borres la línea que valida el número.</strong>
+            Parece que no hace nada, y es lo que evita que un día tu web pinte un precio
+            absurdo si la API devuelve algo raro. Es la típica línea que alguien quita
+            por parecer sobrante.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ================= REGLAS ================= -->
+  <section class="seccion">
+    <h2>Cuatro cosas que evitan que esto te cueste dinero</h2>
+    <p style="color:var(--muted)">
+      Sin ellas funciona igual el 99% del tiempo. El 1% restante se paga.
+    </p>
+    <div class="reglas">
+      <div class="regla">
+        <div class="marca">01</div>
+        <strong>Ninguna cifra es mejor que una inventada</strong>
+        <p>Si la API no responde, se ocultan los bolívares. Un cliente que transfiere de
+           menos por una tasa vieja es un problema que luego persigues por WhatsApp.</p>
+      </div>
+      <div class="regla">
+        <div class="marca">02</div>
+        <strong>Nunca guardes los bolívares</strong>
+        <p>Guarda el pedido en dólares y convierte al mostrar. Un importe en bolívares
+           guardado hoy está mal mañana.</p>
+      </div>
+      <div class="regla">
+        <div class="marca">03</div>
+        <strong>Cinco segundos y se abandona</strong>
+        <p>La tasa adorna el precio; no puede ser lo que impida cargar la tienda.</p>
+      </div>
+      <div class="regla">
+        <div class="marca">04</div>
+        <strong>Es la tasa oficial, no la del paralelo</strong>
+        <p>Si tu negocio cobra a otra tasa, este número no te sirve tal cual: estarías
+           enseñando una cifra distinta a la que cobras.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DESARROLLADORES ================= -->
+  <section class="seccion" id="desarrolladores">
+    <details>
+      <summary>¿Tu web es una app hecha a medida? (Next.js, React…)</summary>
+      <div class="contenido">
+        <p>
+          El bloque de arriba también funciona, pero pide la tasa desde el navegador de
+          cada visitante. En una app propia conviene pedirla <strong>una vez en el
+          servidor, cacheada</strong>: así el HTML ya sale con la cifra puesta y son
+          cien visitas con una sola petición, no cien.
+        </p>
+
+        <div class="archivo">1 · lib/tasaBcv.ts — el módulo, autónomo</div>
+        <pre><code><span class="k">export interface</span> TasaBcv {
+  rate: <span class="k">number</span>;
+  date: <span class="k">string</span>;
+  <span class="c">/* 'bcv' = dato real. 'fallback' = no mostrar bolívares. */</span>
+  source: <span class="s">'bcv'</span> | <span class="s">'fallback'</span>;
+}
+
+<span class="k">export async function</span> obtenerTasaBcv(init?: RequestInit): Promise&lt;TasaBcv&gt; {
+  <span class="k">const</span> controlador = <span class="k">new</span> AbortController();
+  <span class="k">const</span> temporizador = setTimeout(() =&gt; controlador.abort(), 5000);
+  <span class="k">try</span> {
+    <span class="k">const</span> r = <span class="k">await</span> fetch(API_URL, { ...init, signal: controlador.signal });
+    <span class="k">if</span> (!r.ok) <span class="k">return</span> TASA_RESPALDO;
+    <span class="k">return</span> convertir(<span class="k">await</span> r.json()) ?? TASA_RESPALDO;
+  } <span class="k">catch</span> {
+    <span class="k">return</span> TASA_RESPALDO;
+  } <span class="k">finally</span> {
+    clearTimeout(temporizador);
+  }
+}</code></pre>
+
+        <div class="archivo">2 · cachea una hora — el BCV publica una vez al día</div>
+        <pre><code><span class="k">export function</span> getTasaBcv() {
+  <span class="k">return</span> obtenerTasaBcv({ next: { revalidate: 3600 } } <span class="k">as</span> RequestInit);
+}</code></pre>
+
+        <div class="archivo">3 · app/layout.tsx — resuélvela arriba y repártela por contexto</div>
+        <pre><code><span class="k">export default async function</span> RootLayout({ children }) {
+  <span class="k">const</span> tasa = <span class="k">await</span> getTasaBcv();
+  <span class="k">return</span> (
+    &lt;TasaContext.Provider value={tasa}&gt;{children}&lt;/TasaContext.Provider&gt;
+  );
+}</code></pre>
+
+        <div class="aviso">
+          <strong>El error clásico aquí.</strong> Repartir la tasa con un store global
+          sembrado durante el render: el HTML del servidor sale <em>sin</em> bolívares y
+          el precio aparece al cargar el JavaScript. Se detecta mirando el HTML crudo,
+          no el navegador. Con contexto no pasa.
+        </div>
+
+        <div class="archivo">4 · en cada precio — enseña bolívares solo si la tasa es real</div>
+        <pre><code>{tasa.source === <span class="s">'bcv'</span>
+  ? <span class="s">`Bs. ${formatear(precioUsd * tasa.rate)}`</span>
+  : <span class="s">'Al cambio del BCV del día'</span>}</code></pre>
+      </div>
+    </details>
+  </section>
+
+  <!-- ================= LETRA PEQUEÑA ================= -->
+  <section class="seccion">
+    <h2>Antes de usarlo</h2>
+    <div class="aviso">
+      <strong>Dependes de un servicio de terceros.</strong>
+      Los datos vienen de <span class="mono">ve.dolarapi.com</span>, que es gratuito y no
+      lo controlas tú. Si cerrara o cambiara de formato, tu web no se rompe —oculta los
+      bolívares y sigue enseñando los dólares— pero pierdes la conversión hasta apuntarla
+      a otra fuente.
+    </div>
+  </section>
+
+  <footer>
+    Fuente: <span class="mono">https://ve.dolarapi.com/v1/dolares/oficial</span> ·
+    Gratis, sin clave, se puede llamar desde cualquier web.
+  </footer>
+
+</div>
+
+<script type="module">
+// El mismo módulo del repo, compilado. La demo no reimplementa la lógica.
+import { obtenerTasaBcv, TASA_RESPALDO } from './dist/tasaBcv.js';
+
+const TEXTO_SIN_TASA = 'Al cambio del BCV del día';
+let tasaActual = TASA_RESPALDO;
+
+const $ = (s) => document.querySelector(s);
+
+const formatearBs = (usd, tasa) =>
+  tasa.source !== 'bcv'
+    ? null
+    : 'Bs. ' + (usd * tasa.rate).toLocaleString('es-VE',
+        { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function pintar(tasa) {
+  tasaActual = tasa;
+  const real = tasa.source === 'bcv';
+
+  $('#tasa').textContent = real
+    ? tasa.rate.toLocaleString('es-VE', { minimumFractionDigits: 4 })
+    : '—';
+  $('#fecha').textContent = real
+    ? `bolívares por dólar · publicada el ${tasa.date}`
+    : 'sin dato disponible ahora mismo';
+
+  const estado = $('#estado');
+  estado.textContent = real ? 'BCV' : 'fallback';
+  estado.dataset.source = tasa.source;
+
+  // Vista previa: exactamente lo que verá el visitante.
+  const previa = formatearBs(49.9, tasa);
+  $('#previa-bs').textContent = previa ?? TEXTO_SIN_TASA;
+  $('#previa-bs').style.color = previa ? '' : 'var(--muted)';
+
+  calcular();
+}
+
+function calcular() {
+  const usd = Number.parseFloat($('#usd').value);
+  const salida = $('#resultado');
+
+  if (!Number.isFinite(usd) || usd < 0) {
+    salida.textContent = 'Escribe un importe';
+    salida.classList.add('sin-tasa');
+    return;
+  }
+
+  const bs = formatearBs(usd, tasaActual);
+  salida.textContent = bs ?? TEXTO_SIN_TASA;
+  salida.classList.toggle('sin-tasa', bs === null);
+}
+
+// --- Instrucciones por plataforma ----------------------------------------
+const PLATAFORMAS = {
+  wordpress: {
+    nota: 'Funciona igual en el editor de bloques (Gutenberg) que en Elementor.',
+    pasos: [
+      'Edita la página o entrada donde quieras la tasa.',
+      'Añade un bloque nuevo y busca <b>HTML personalizado</b>.',
+      'Pega el bloque dentro y actualiza la página.',
+      'En Elementor: arrastra el widget <b>HTML</b> y pégalo ahí.',
+    ],
+  },
+  wix: {
+    nota: 'Wix lo llama «Insertar código». Necesitas un plan de pago para usarlo.',
+    pasos: [
+      'En el editor, pulsa <b>+ Añadir</b> → <b>Insertar</b> → <b>Insertar HTML</b>.',
+      'Coloca el recuadro donde quieras que salga la tasa.',
+      'Pulsa <b>Introducir código</b> y pega el bloque.',
+      'Dale a <b>Aplicar</b> y publica.',
+    ],
+  },
+  squarespace: {
+    nota: 'Necesitas plan Business o superior para los bloques de código.',
+    pasos: [
+      'Edita la página y pulsa donde quieras insertarlo.',
+      'Elige el bloque <b>Code</b>.',
+      'Borra el contenido de ejemplo y pega el bloque.',
+      'Guarda y publica.',
+    ],
+  },
+  shopify: {
+    nota: 'Lo más fácil es una sección de HTML personalizado; no hace falta tocar el tema.',
+    pasos: [
+      'Ve a <b>Tienda online</b> → <b>Temas</b> → <b>Personalizar</b>.',
+      'Pulsa <b>Añadir sección</b> y elige <b>HTML personalizado</b>.',
+      'Pega el bloque en el campo de código.',
+      'Guarda. Para meterlo en la ficha de producto, edita esa plantilla igual.',
+    ],
+  },
+  html: {
+    nota: 'El caso más simple: es un archivo de texto.',
+    pasos: [
+      'Abre tu archivo <code>.html</code> con cualquier editor.',
+      'Pega el bloque justo donde quieras que aparezca la cifra.',
+      'Guarda y sube el archivo a tu servidor.',
+      'Puedes pegarlo tantas veces como quieras, cambiando el <code>id</code> en cada una.',
+    ],
+  },
+};
+
+function mostrarPlataforma(clave) {
+  const { nota, pasos } = PLATAFORMAS[clave];
+  $('#panel-plataforma').innerHTML =
+    `<p>${nota}</p><ol>${pasos.map((p) => `<li>${p}</li>`).join('')}</ol>`;
+
+  document.querySelectorAll('[data-plataforma]').forEach((b) => {
+    b.setAttribute('aria-selected', String(b.dataset.plataforma === clave));
+  });
+}
+
+document.querySelectorAll('[data-plataforma]').forEach((b) => {
+  b.addEventListener('click', () => mostrarPlataforma(b.dataset.plataforma));
+});
+
+// --- Copiar al portapapeles ----------------------------------------------
+$('#copiar').addEventListener('click', async (e) => {
+  const boton = e.currentTarget;
+  const texto = document.querySelector(boton.dataset.objetivo).textContent;
+
+  try {
+    await navigator.clipboard.writeText(texto);
+    boton.textContent = '¡Copiado!';
+  } catch {
+    // Sin permiso de portapapeles: se selecciona para que copie a mano.
+    const rango = document.createRange();
+    rango.selectNodeContents(document.querySelector(boton.dataset.objetivo));
+    getSelection().removeAllRanges();
+    getSelection().addRange(rango);
+    boton.textContent = 'Pulsa Ctrl+C';
+  }
+
+  boton.dataset.hecho = 'si';
+  setTimeout(() => { boton.textContent = 'Copiar'; delete boton.dataset.hecho; }, 2500);
+});
+
+// --- Arranque -------------------------------------------------------------
+$('#usd').addEventListener('input', calcular);
+$('#recargar').addEventListener('click', async () => pintar(await obtenerTasaBcv()));
+$('#romper').addEventListener('click', () => pintar(TASA_RESPALDO));
+
+mostrarPlataforma('wordpress');
+pintar(await obtenerTasaBcv());
+</script>
+</body>
+</html>

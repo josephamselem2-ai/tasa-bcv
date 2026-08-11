@@ -1,0 +1,44 @@
+name: Publicar la demo en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Si se empujan dos commits seguidos, publica el último y cancela el anterior.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Compila src/tasaBcv.ts → demo/dist/tasaBcv.js. La demo importa ese
+      # archivo, así que lo que se publica es el módulo de verdad.
+      - run: npm run demo:build
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: demo/
+
+      - id: despliegue
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,26 @@
+{
+  "name": "tasa-bcv",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tasa oficial del BCV en tiempo real: módulo portable, sin dependencias de runtime.",
+  "exports": {
+    ".": "./src/tasaBcv.ts",
+    "./servidor": "./src/tasaServidor.ts"
+  },
+  "scripts": {
+    "test": "node --test src/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "demo:build": "tsc src/tasaBcv.ts --outDir demo/dist --target ES2022 --module esnext --moduleResolution bundler --strict",
+    "demo": "npm run demo:build && node scripts/servidor-demo.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.1.0",
+    "playwright": "^1.62.1",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=22.6"
+  }
+}

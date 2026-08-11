@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Tests
+        run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+  # Comprueba la demo en un navegador real: que la tasa se pinta y que, con la
+  # API caída, NO aparece ninguna cifra en bolívares.
+  navegador:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Levantar la demo
+        run: |
+          npm run demo:build
+          node scripts/servidor-demo.mjs &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:4173 >/dev/null && exit 0
+            sleep 1
+          done
+          echo "el servidor de demo no levantó en 30 s" >&2
+          exit 1
+
+      - name: Manejarla
+        run: node scripts/verificar-demo.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: capturas
+          path: demo/capturas/

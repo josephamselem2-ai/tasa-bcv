@@ -1,0 +1,38 @@
+<!--
+  Tasa BCV — bloque para copiar y pegar.
+
+  Para webs que te dejan insertar un bloque de código: HTML normal, WordPress,
+  Wix, Squarespace, Shopify, Tiendanube. No hace falta instalar nada, ni
+  registrarse, ni ninguna clave. La API permite llamadas desde el navegador de
+  cualquier web (Access-Control-Allow-Origin: *).
+
+  Muestra "Al cambio del BCV del día" mientras carga, y lo sustituye por la
+  cifra en cuanto llega. Se actualiza sola cada hora.
+-->
+<span id="tasa">Al cambio del BCV del día</span>
+
+<script>
+async function pintarTasa() {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), 5000);
+  try {
+    const r = await fetch('https://ve.dolarapi.com/v1/dolares/oficial',
+                          { signal: c.signal });
+    if (!r.ok) return;
+    const d = await r.json();
+    const tasa = d?.promedio;
+    // NO BORRES ESTA LÍNEA. Sin validar, un dato raro pinta un precio absurdo.
+    if (typeof tasa !== 'number' || !isFinite(tasa) || tasa <= 0 || tasa > 1000000) return;
+
+    document.getElementById('tasa').textContent =
+      'Bs. ' + tasa.toLocaleString('es-VE', { minimumFractionDigits: 2 });
+  } catch {
+    // Se queda el texto de siempre. No se inventa nada.
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+pintarTasa();
+setInterval(pintarTasa, 3600000);
+</script>
