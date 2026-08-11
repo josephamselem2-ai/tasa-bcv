@@ -1,0 +1,40 @@
+<!doctype html>
+<!--
+  Plantilla del favicon. scripts/generar-iconos.mjs la fotografía en varios
+  tamaños y produce los PNG en demo/.
+
+  Todo se mide en vmin (proporción del lienzo), así que el mismo archivo sirve
+  igual para 32 px que para 180 px sin tocar nada.
+
+  Se descartó un favicon SVG con texto: el navegador lo dibuja con las fuentes
+  del sistema, así que en un equipo sin Georgia saldría otra letra. Con PNG
+  mando yo sobre el resultado.
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0 }
+  html, body { width:100%; height:100% }
+  body {
+    display:grid; place-items:center;
+    background:#4338ca;                 /* el índigo de acento de la página */
+    border-radius:22vmin;               /* esquinas redondeadas proporcionales */
+    overflow:hidden;
+  }
+  .marca {
+    font-family:Georgia,"Iowan Old Style","Times New Roman",serif;
+    font-weight:700;
+    font-size:52vmin;
+    line-height:1;
+    letter-spacing:-.04em;
+    color:#fff;
+    /* Compensa que Georgia asienta el texto un pelo bajo respecto a la caja */
+    transform:translateY(-2.5vmin);
+  }
+</style>
+</head>
+<body>
+  <span class="marca">Bs</span>
+</body>
+</html>
