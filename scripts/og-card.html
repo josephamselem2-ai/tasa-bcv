@@ -1,0 +1,75 @@
+<!doctype html>
+<!--
+  Plantilla de la imagen para compartir (Open Graph), 1200x630.
+  No se publica: scripts/generar-og.mjs la fotografía y produce demo/og.png.
+
+  Regla: aquí NO va ninguna cifra en bolívares. La imagen se cachea durante
+  meses en Facebook, X y WhatsApp; una tasa concreta quedaría vieja y estaría
+  contradiciendo justo lo que predica la página.
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing:border-box; margin:0 }
+  body {
+    width:1200px; height:630px; overflow:hidden;
+    background:#0f1018; color:#e9e9f4;
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    display:flex; flex-direction:column; justify-content:space-between;
+    padding:64px 72px;
+    /* Halo índigo, el acento de la página */
+    background-image:radial-gradient(circle at 88% 12%, #252545 0%, transparent 45%);
+  }
+  .etiqueta {
+    display:inline-flex; align-items:center; gap:12px;
+    font-size:19px; font-weight:700; letter-spacing:.16em; text-transform:uppercase;
+    color:#5fd39b; background:#12301f; padding:10px 20px; border-radius:999px;
+    align-self:flex-start;
+  }
+  .punto { width:10px; height:10px; border-radius:50%; background:#5fd39b }
+
+  h1 {
+    font-family:Georgia,"Iowan Old Style",serif; font-weight:600;
+    font-size:78px; line-height:1.08; letter-spacing:-.02em; margin-top:34px;
+    /* balance reparte las líneas en vez de dejar "web" solo abajo */
+    text-wrap:balance; max-width:15ch;
+  }
+  .sub { font-size:31px; line-height:1.45; color:#9698b4; margin-top:22px; max-width:24ch }
+
+  .medio { display:flex; align-items:flex-end; justify-content:space-between; gap:48px }
+
+  .muestra {
+    background:#181925; border:1px solid #2a2b3d; border-radius:20px;
+    padding:30px 38px; min-width:340px;
+  }
+  .muestra .usd { font-size:46px; font-variant-numeric:tabular-nums }
+  .muestra .bs  { font-size:26px; color:#a5b4fc; margin-top:8px; font-style:italic }
+
+  .pie { display:flex; align-items:center; justify-content:space-between; gap:32px }
+  .url { font-family:ui-monospace,"Cascadia Code",Menlo,monospace; font-size:25px; color:#a5b4fc }
+  .stacks { font-size:23px; color:#767892 }
+</style>
+</head>
+<body>
+
+  <div>
+    <div class="etiqueta"><span class="punto"></span> Gratis · Sin registro</div>
+    <h1>Pon la tasa del BCV en tu web</h1>
+  </div>
+
+  <div class="medio">
+    <p class="sub">Copia un bloque, pégalo, y tus precios se ven en bolívares.</p>
+    <div class="muestra">
+      <div class="usd">$49.90</div>
+      <div class="bs">Bs. al cambio del día</div>
+    </div>
+  </div>
+
+  <div class="pie">
+    <span class="url">josephamselem2-ai.github.io/tasa-bcv</span>
+    <span class="stacks">WordPress · Wix · Shopify · Next.js</span>
+  </div>
+
+</body>
+</html>
