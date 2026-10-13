@@ -1,0 +1,61 @@
+name: Registrar lo que devuelve cada fuente
+
+# Toma dos muestras al día y las guarda en datos/registro.csv.
+#
+# Existe para responder una pregunta que no se puede contestar de memoria:
+# ¿qué fecha devuelve cada API un sábado? Si DolarVZLA adelanta al lunes
+# mientras DolarAPI se queda en el viernes, el lunes estará por escrito.
+
+on:
+  schedule:
+    # 12:00 y 22:00 UTC = 08:00 y 18:00 en Venezuela. El BCV publica al cierre
+    # de la tarde, así que una muestra cae antes y la otra después.
+    - cron: '0 12 * * *'
+    - cron: '0 22 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Dos muestras no deben pisarse si una tarda.
+concurrency:
+  group: registro
+  cancel-in-progress: false
+
+jobs:
+  registrar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Tomar la muestra
+        run: node scripts/registrar.mjs
+
+      - name: Guardarla en el repo
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add datos/registro.csv
+
+          # Sin cambios no hay nada que guardar: salir en verde, no fallar.
+          if git diff --cached --quiet; then
+            echo 'sin cambios'
+            exit 0
+          fi
+
+          # [skip ci] evita que esto dispare los tests y un redespliegue de la
+          # web dos veces al día por una línea de datos.
+          git commit -m "Registro de tasas: $(date -u +'%Y-%m-%d %H:%M UTC') [skip ci]"
+
+          # Si alguien empujó mientras tanto, se reintenta sobre lo nuevo en
+          # lugar de fallar y perder la muestra.
+          for intento in 1 2 3; do
+            git push && exit 0
+            echo "push rechazado, reintento $intento"
+            git pull --rebase --autostash
+          done
+          exit 1
