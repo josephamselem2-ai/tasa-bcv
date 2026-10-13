@@ -75,7 +75,17 @@
     {
       "@type": "Question",
       "name": "¿Es gratis mostrar la tasa del BCV en mi web?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Sí. Los datos vienen de DolarAPI, que es gratuito y no pide registro ni clave de API." }
+      "acceptedAnswer": { "@type": "Answer", "text": "Sí. Los datos vienen de DolarVZLA y DolarAPI, las dos gratuitas y sin registro ni clave de API." }
+    },
+    {
+      "@type": "Question",
+      "name": "¿De qué día es la tasa que se muestra un sábado?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Del próximo día hábil. El BCV publica al cierre de cada día hábil y esa tasa rige el día hábil siguiente, lo que se llama fecha valor. Lo que se publica el viernes por la tarde es la tasa del lunes, así que el sábado y el domingo ya se muestra la del lunes, no la del viernes." }
+    },
+    {
+      "@type": "Question",
+      "name": "¿Por qué se consultan dos fuentes en vez de una?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Porque esto decide cuántos bolívares transfiere un cliente. Si las dos fuentes discrepan más de un 5%, no se muestra ninguna cifra. Ese margen caza que una devuelva euros por error, que están solo un 12% por encima del dólar." }
     },
     {
       "@type": "Question",
@@ -128,7 +138,12 @@
   h3 { font-size:1rem }
   p { margin:0; max-width:64ch }
   a { color:var(--accent) }
-  code,pre,.mono { font-family:ui-monospace,"Cascadia Code","SF Mono",Menlo,Consolas,monospace }
+  /* Sin ligaduras: si no, la fuente dibuja <= como ≤ y === como ≡, y quien
+     lee el bloque antes de pegarlo cree que el código lleva símbolos raros. */
+  code,pre,.mono {
+    font-family:ui-monospace,"Cascadia Code","SF Mono",Menlo,Consolas,monospace;
+    font-variant-ligatures:none;
+  }
   :is(p,li,td) > code { background:var(--surface-2); border-radius:4px; padding:.1em .36em; font-size:.88em }
 
   .en-vivo {
@@ -152,6 +167,13 @@
   .estado { display:inline-block; font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; padding:.18rem .55rem;
             border-radius:999px; font-weight:700; background:var(--live-soft); color:var(--live); margin-left:.4rem }
   .estado[data-source="fallback"] { background:var(--warn-soft); color:var(--warn) }
+
+  .detalle { display:flex; flex-wrap:wrap; gap:.3rem .8rem; margin-top:.35rem; font-size:.84rem }
+  .detalle:empty { display:none }
+  .variacion { font-variant-numeric:tabular-nums }
+  .contraste { font-weight:600 }
+  .contraste[data-ok="si"] { color:var(--live) }
+  .contraste[data-ok="no"] { color:var(--warn) }
 
   .calculadora { display:flex; flex-direction:column; gap:.5rem; min-width:15rem }
   .calculadora label { font-size:.72rem; letter-spacing:.09em; text-transform:uppercase; color:var(--muted) }
@@ -269,6 +291,7 @@
           <span id="fecha">consultando…</span>
           <span class="estado" id="estado">—</span>
         </div>
+        <div class="meta detalle" id="detalle"></div>
       </div>
 
       <div class="calculadora">
@@ -284,7 +307,7 @@
 
     <div class="controles">
       <button id="recargar">Volver a consultar</button>
-      <button id="romper">Ver qué pasa si la API se cae</button>
+      <button id="romper">Ver qué pasa si las fuentes se caen</button>
     </div>
   </div>
 
@@ -339,34 +362,61 @@
           <p>Es todo lo que necesitas. Dale al botón y ya lo tienes en el portapapeles.</p>
           <div class="caja-codigo">
             <button class="btn-copiar" id="copiar" data-objetivo="#snippet">Copiar</button>
-            <pre><code id="snippet">&lt;span id="tasa-bcv"&gt;Al cambio del BCV del día&lt;/span&gt;
+            <pre><code id="snippet"><!--SNIPPET-->&lt;span id="tasa-bcv"&gt;Al cambio del BCV del día&lt;/span&gt;
 
 &lt;script&gt;
 async function pintarTasaBcv() {
-  const c = new AbortController();
-  const t = setTimeout(() =&gt; c.abort(), 5000);
-  try {
-    const r = await fetch('https://ve.dolarapi.com/v1/dolares/oficial',
-                          { signal: c.signal });
-    if (!r.ok) return;
-    const d = await r.json();
-    const tasa = d?.promedio;
-    // NO BORRES ESTA LÍNEA: comprueba que la tasa sea razonable.
-    if (typeof tasa !== 'number' || !isFinite(tasa)
-        || tasa &lt;= 0 || tasa &gt; 1000000) return;
+  // Cuánto pueden discrepar las dos fuentes antes de no mostrar nada.
+  // 5% y no 15%: el euro cotiza solo un 12% por encima del dólar, así que con
+  // 15% una fuente que devolviera euros pasaría y cobrarías un 12% de más.
+  var LIMITE = 0.05;
 
-    document.getElementById('tasa-bcv').textContent =
-      'Bs. ' + tasa.toLocaleString('es-VE', { minimumFractionDigits: 2 });
-  } catch {
-    // Si falla, se queda el texto de siempre. No se inventa nada.
-  } finally {
-    clearTimeout(t);
+  async function pedir(url, sacar) {
+    var c = new AbortController();
+    var t = setTimeout(function () { c.abort(); }, 5000);
+    try {
+      var r = await fetch(url, { signal: c.signal });
+      if (!r.ok) return null;
+      var v = sacar(await r.json());
+      // NO BORRES ESTA LÍNEA. Sin validar, un dato raro pinta un precio absurdo.
+      return (typeof v === 'number' &amp;&amp; isFinite(v) &amp;&amp; v &gt; 0 &amp;&amp; v &lt;= 1000000) ? v : null;
+    } catch (e) {
+      return null;
+    } finally {
+      clearTimeout(t);
+    }
   }
+
+  var pareja = await Promise.all([
+    pedir('https://rates.dolarvzla.com/bcv/current.json', function (d) {
+      return d &amp;&amp; d.current &amp;&amp; d.current.usd;
+    }),
+    pedir('https://ve.dolarapi.com/v1/dolares/oficial', function (d) {
+      return d &amp;&amp; d.promedio;
+    })
+  ]);
+
+  var principal = pareja[0], contraste = pareja[1];
+
+  // Las dos respondieron pero no se parecen: una de ellas miente. No se
+  // muestra ninguna, porque no hay forma de saber cuál es la buena.
+  if (principal !== null &amp;&amp; contraste !== null) {
+    var diferencia = Math.abs(principal - contraste) / Math.min(principal, contraste);
+    if (diferencia &gt; LIMITE) return;
+  }
+
+  var tasa = principal !== null ? principal : contraste;
+
+  // Ninguna respondió: se queda el texto de siempre. No se inventa nada.
+  if (tasa === null) return;
+
+  document.getElementById('tasa-bcv').textContent =
+    'Bs. ' + tasa.toLocaleString('es-VE', { minimumFractionDigits: 2 });
 }
 
 pintarTasaBcv();
 setInterval(pintarTasaBcv, 3600000);
-&lt;/script&gt;</code></pre>
+&lt;/script&gt;<!--/SNIPPET--></code></pre>
           </div>
         </div>
       </div>
@@ -425,7 +475,7 @@ setInterval(pintarTasaBcv, 3600000);
 
   <!-- ================= REGLAS ================= -->
   <section class="seccion">
-    <h2>Cuatro cosas que evitan que esto te cueste dinero</h2>
+    <h2>Seis cosas que evitan que esto te cueste dinero</h2>
     <p style="color:var(--muted)">
       Sin ellas funciona igual el 99% del tiempo. El 1% restante se paga.
     </p>
@@ -433,22 +483,38 @@ setInterval(pintarTasaBcv, 3600000);
       <div class="regla">
         <div class="marca">01</div>
         <strong>Ninguna cifra es mejor que una inventada</strong>
-        <p>Si la API no responde, se ocultan los bolívares. Un cliente que transfiere de
-           menos por una tasa vieja es un problema que luego persigues por WhatsApp.</p>
+        <p>Si las APIs no responden, se ocultan los bolívares. Un cliente que transfiere
+           de menos por una tasa vieja es un problema que luego persigues por WhatsApp.</p>
       </div>
       <div class="regla">
         <div class="marca">02</div>
+        <strong>La fecha que importa es cuándo rige, no cuándo se publicó</strong>
+        <p>El BCV publica al cierre de cada día hábil y esa tasa aplica el día hábil
+           <em>siguiente</em>. Lo que sale el viernes por la tarde es la tasa del lunes.
+           Una fuente que etiquete por fecha de publicación te deja todo el fin de semana
+           enseñando la del viernes.</p>
+      </div>
+      <div class="regla">
+        <div class="marca">03</div>
+        <strong>Dos fuentes, no una</strong>
+        <p>Esto decide cuántos bolívares transfiere alguien. Si las dos discrepan más de
+           un 5%, no se muestra nada. Ese margen caza que una devuelva euros por error
+           —están solo un 12% por encima— y deja pasar el desfase normal, que es del
+           0,13%.</p>
+      </div>
+      <div class="regla">
+        <div class="marca">04</div>
         <strong>Nunca guardes los bolívares</strong>
         <p>Guarda el pedido en dólares y convierte al mostrar. Un importe en bolívares
            guardado hoy está mal mañana.</p>
       </div>
       <div class="regla">
-        <div class="marca">03</div>
+        <div class="marca">05</div>
         <strong>Cinco segundos y se abandona</strong>
         <p>La tasa adorna el precio; no puede ser lo que impida cargar la tienda.</p>
       </div>
       <div class="regla">
-        <div class="marca">04</div>
+        <div class="marca">06</div>
         <strong>Es la tasa oficial, no la del paralelo</strong>
         <p>Si tu negocio cobra a otra tasa, este número no te sirve tal cual: estarías
            enseñando una cifra distinta a la que cobras.</p>
@@ -471,23 +537,40 @@ setInterval(pintarTasaBcv, 3600000);
         <div class="archivo">1 · lib/tasaBcv.ts — el módulo, autónomo</div>
         <pre><code><span class="k">export interface</span> TasaBcv {
   rate: <span class="k">number</span>;
+  <span class="c">/* Fecha VALOR: el día hábil en que esta tasa rige. */</span>
   date: <span class="k">string</span>;
   <span class="c">/* 'bcv' = dato real. 'fallback' = no mostrar bolívares. */</span>
   source: <span class="s">'bcv'</span> | <span class="s">'fallback'</span>;
+  eur: <span class="k">number</span> | <span class="k">null</span>;
+  previous: { rate: <span class="k">number</span>; date: <span class="k">string</span> } | <span class="k">null</span>;
+  <span class="c">/* true si dos fuentes independientes coincidieron. */</span>
+  contrastada: <span class="k">boolean</span>;
 }
 
+<span class="c">// 5% y no 15%: el euro cotiza solo un 12% por encima del dólar, así que un
+// margen mayor dejaría colarse una fuente que devolviera euros.</span>
+<span class="k">const</span> DIFERENCIA_MAXIMA = 0.05;
+
 <span class="k">export async function</span> obtenerTasaBcv(init?: RequestInit): Promise&lt;TasaBcv&gt; {
-  <span class="k">const</span> controlador = <span class="k">new</span> AbortController();
-  <span class="k">const</span> temporizador = setTimeout(() =&gt; controlador.abort(), 5000);
-  <span class="k">try</span> {
-    <span class="k">const</span> r = <span class="k">await</span> fetch(API_URL, { ...init, signal: controlador.signal });
-    <span class="k">if</span> (!r.ok) <span class="k">return</span> TASA_RESPALDO;
-    <span class="k">return</span> convertir(<span class="k">await</span> r.json()) ?? TASA_RESPALDO;
-  } <span class="k">catch</span> {
-    <span class="k">return</span> TASA_RESPALDO;
-  } <span class="k">finally</span> {
-    clearTimeout(temporizador);
+  <span class="c">// En paralelo y con temporizadores independientes: si una fuente se
+  // cuelga, la otra no se cae con ella.</span>
+  <span class="k">const</span> [principal, contraste] = <span class="k">await</span> Promise.all([
+    pedir(API_PRINCIPAL, convertirPrincipal, init),
+    pedir(API_CONTRASTE, convertirContraste, init),
+  ]);
+
+  <span class="k">if</span> (principal === <span class="k">null</span> &amp;&amp; contraste === <span class="k">null</span>) <span class="k">return</span> TASA_RESPALDO;
+
+  <span class="k">if</span> (principal !== <span class="k">null</span> &amp;&amp; contraste !== <span class="k">null</span>) {
+    <span class="c">// Se contrastan los VALORES, no las fechas: que discrepen en la fecha
+    // es lo esperado un fin de semana.</span>
+    <span class="k">if</span> (diferenciaRelativa(principal.rate, contraste.rate) &gt; DIFERENCIA_MAXIMA) {
+      <span class="k">return</span> TASA_RESPALDO;
+    }
+    <span class="k">return</span> { ...principal, contrastada: <span class="k">true</span> };
   }
+
+  <span class="k">return</span> { ...(principal ?? contraste)!, contrastada: <span class="k">false</span> };
 }</code></pre>
 
         <div class="archivo">2 · cachea una hora — el BCV publica una vez al día</div>
@@ -522,11 +605,12 @@ setInterval(pintarTasaBcv, 3600000);
   <section class="seccion">
     <h2>Antes de usarlo</h2>
     <div class="aviso">
-      <strong>Dependes de un servicio de terceros.</strong>
-      Los datos vienen de <span class="mono">ve.dolarapi.com</span>, que es gratuito y no
-      lo controlas tú. Si cerrara o cambiara de formato, tu web no se rompe —oculta los
-      bolívares y sigue enseñando los dólares— pero pierdes la conversión hasta apuntarla
-      a otra fuente.
+      <strong>Dependes de servicios de terceros.</strong>
+      Los datos vienen de <span class="mono">rates.dolarvzla.com</span> y
+      <span class="mono">ve.dolarapi.com</span>. Las dos son gratuitas y ninguna la
+      controlas tú. Por eso se consultan las dos: si una se cae, la otra sostiene la
+      conversión. Si cayeran las dos, tu web no se rompe —oculta los bolívares y sigue
+      enseñando los dólares— pero pierdes la conversión hasta que vuelvan.
     </div>
   </section>
 
@@ -544,7 +628,8 @@ setInterval(pintarTasaBcv, 3600000);
       </div>
     </div>
     <p class="fuente-pie">
-      Datos: <span class="mono">ve.dolarapi.com/v1/dolares/oficial</span> ·
+      Datos: <span class="mono">rates.dolarvzla.com</span> contrastado con
+      <span class="mono">ve.dolarapi.com</span> ·
       Gratis, sin clave, llamable desde cualquier web · Código bajo licencia MIT
     </p>
   </footer>
@@ -573,13 +658,18 @@ function pintar(tasa) {
   $('#tasa').textContent = real
     ? tasa.rate.toLocaleString('es-VE', { minimumFractionDigits: 4 })
     : '—';
+  // "vigente el", NO "publicada el". El BCV publica al cierre de cada día
+  // hábil y esa tasa rige el día hábil SIGUIENTE: lo que sale el viernes por
+  // la tarde es la tasa del lunes. Decir "publicada" era el error de fondo.
   $('#fecha').textContent = real
-    ? `bolívares por dólar · publicada el ${tasa.date}`
+    ? `bolívares por dólar · vigente el ${tasa.date}`
     : 'sin dato disponible ahora mismo';
 
   const estado = $('#estado');
   estado.textContent = real ? 'BCV' : 'fallback';
   estado.dataset.source = tasa.source;
+
+  pintarDetalle(tasa, real);
 
   // Vista previa: exactamente lo que verá el visitante.
   const previa = formatearBs(49.9, tasa);
@@ -587,6 +677,34 @@ function pintar(tasa) {
   $('#previa-bs').style.color = previa ? '' : 'var(--muted)';
 
   calcular();
+}
+
+/**
+ * Variación desde el día hábil anterior, y si el dato lo respaldan las dos
+ * fuentes o solo una. Se construye con nodos, no con innerHTML: lo que entra
+ * viene de una API y no tiene por qué acabar interpretándose como HTML.
+ */
+function pintarDetalle(tasa, real) {
+  const detalle = $('#detalle');
+  detalle.replaceChildren();
+  if (!real) return;
+
+  if (tasa.previous) {
+    const v = ((tasa.rate - tasa.previous.rate) / tasa.previous.rate) * 100;
+    const span = document.createElement('span');
+    span.className = 'variacion';
+    span.textContent =
+      `${v >= 0 ? '▲' : '▼'} ${Math.abs(v).toLocaleString('es-VE', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}% desde el ${tasa.previous.date}`;
+    detalle.append(span);
+  }
+
+  const contraste = document.createElement('span');
+  contraste.className = 'contraste';
+  contraste.dataset.ok = tasa.contrastada ? 'si' : 'no';
+  contraste.textContent = tasa.contrastada
+    ? '✓ dos fuentes coinciden'
+    : '⚠ solo respondió una fuente';
+  detalle.append(contraste);
 }
 
 function calcular() {

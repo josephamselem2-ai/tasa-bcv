@@ -42,6 +42,17 @@ comprobar(/^\d/.test(tasa ?? ''), `la tasa se pinta: ${tasa}`);
 comprobar((await pagina.textContent('#previa-bs'))?.startsWith('Bs.'),
   'la vista previa muestra bolívares');
 
+const fecha = (await pagina.textContent('#fecha'))?.trim();
+comprobar(/vigente el \d{4}-\d{2}-\d{2}/.test(fecha ?? ''),
+  `habla de fecha valor, no de publicación: "${fecha}"`);
+comprobar(!/publicada/i.test(fecha ?? ''),
+  'no dice "publicada", que es el error conceptual de fondo');
+
+const detalle = (await pagina.textContent('#detalle'))?.trim();
+comprobar(/[▲▼]\s*[\d.,]+%\s*desde el \d{4}-\d{2}-\d{2}/.test(detalle ?? ''),
+  `muestra la variación desde el día hábil anterior: "${detalle}"`);
+comprobar(/fuentes? /.test(detalle ?? ''), 'dice si el dato está contrastado');
+
 // --- 2. Calculadora -------------------------------------------------------
 console.log('\n2. Calculadora');
 await pagina.fill('#usd', '100');
@@ -67,10 +78,27 @@ await pagina.click('[data-plataforma="wordpress"]');
 console.log('\n4. Botón de copiar');
 await pagina.click('#copiar');
 const copiado = await pagina.evaluate(() => navigator.clipboard.readText());
-comprobar(copiado.includes('ve.dolarapi.com'), 'el portapapeles lleva el endpoint');
-comprobar(copiado.includes('tasa > 1000000'), 'el portapapeles lleva la línea que valida');
-comprobar(!copiado.includes('&lt;'), 'el HTML va sin escapar, listo para pegar');
+comprobar(copiado.includes('rates.dolarvzla.com'), 'lleva la fuente principal');
+comprobar(copiado.includes('ve.dolarapi.com'), 'lleva la fuente de contraste');
+comprobar(copiado.includes('v <= 1000000'), 'lleva la línea que valida');
+comprobar(copiado.includes('LIMITE'), 'lleva el contraste entre las dos fuentes');
+comprobar(!copiado.includes('&lt;') && !copiado.includes('&amp;'),
+  'el HTML va sin escapar, listo para pegar');
+comprobar(!copiado.includes('SNIPPET'), 'los marcadores no se cuelan en el portapapeles');
 comprobar((await pagina.textContent('#copiar')) === '¡Copiado!', 'el botón confirma');
+
+// El bloque de la web tiene que ser el mismo que embed/tasa-bcv.html.
+// Se normalizan los finales de línea: en Windows el archivo se guarda con
+// CRLF y el parser de HTML los convierte a LF, así que comparar en crudo
+// fallaría por una diferencia que no existe.
+const { readFileSync } = await import('node:fs');
+const normalizar = (t) => t.replaceAll('\r\n', '\n').trim();
+
+const enDisco = readFileSync(
+  fileURLToPath(new URL('../embed/tasa-bcv.html', import.meta.url)), 'utf8',
+).replace(/^\s*<!--[\s\S]*?-->\s*/, '');
+
+comprobar(normalizar(copiado) === normalizar(enDisco), 'coincide con embed/tasa-bcv.html');
 
 await pagina.screenshot({ path: CAPTURAS + 'guia-completa.png', fullPage: true });
 await pagina.screenshot({ path: CAPTURAS + 'con-tasa.png' });

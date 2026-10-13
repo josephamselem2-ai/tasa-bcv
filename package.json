@@ -11,7 +11,7 @@
   "scripts": {
     "test": "node --test src/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "demo:build": "tsc src/tasaBcv.ts --outDir demo/dist --target ES2022 --module esnext --moduleResolution bundler --strict",
+    "demo:build": "node scripts/sincronizar-embed.mjs && tsc src/tasaBcv.ts --outDir demo/dist --target ES2022 --module esnext --moduleResolution bundler --strict",
     "demo": "npm run demo:build && node scripts/servidor-demo.mjs"
   },
   "devDependencies": {

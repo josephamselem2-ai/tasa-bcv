@@ -1,126 +1,236 @@
 import { test, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { obtenerTasaBcv, convertir, TASA_RESPALDO } from './tasaBcv.ts';
+import {
+  obtenerTasaBcv,
+  convertirPrincipal,
+  convertirContraste,
+  diferenciaRelativa,
+  TASA_RESPALDO,
+} from './tasaBcv.ts';
 
 const fetchOriginal = globalThis.fetch;
 
-/** Sustituye fetch por una respuesta fija. Devuelve las llamadas registradas. */
-function stubFetch(respuesta: unknown, { ok = true }: { ok?: boolean } = {}) {
-  const llamadas: Array<[string, RequestInit | undefined]> = [];
-  globalThis.fetch = (async (url: string, init?: RequestInit) => {
-    llamadas.push([url, init]);
+// Cifras reales del martes 13/10/2026, con el feriado del lunes 12 de por medio.
+const USD = 876.7976;
+const EUR = 982.00454402;
+const USD_PREVIO = 875.6505;
+
+const dolarVzla = () => ({
+  current: { usd: USD, eur: EUR, date: '2026-10-13' },
+  previous: { usd: USD_PREVIO, eur: 980.61472543, date: '2026-10-09' },
+});
+
+const dolarApi = (promedio = USD, fecha = '2026-10-13T00:00:00-04:00') =>
+  ({ promedio, fechaActualizacion: fecha });
+
+/**
+ * Lo que puede devolver una fuente en los tests: un cuerpo JSON, un Error al
+ * leerlo, o uno de los dos centinelas de fallo.
+ */
+type Respuesta = Record<string, unknown> | Error | 'caida' | 'http-500';
+
+/** Responde distinto a cada fuente segun la URL que se pida. */
+function stub(
+  { principal = dolarVzla(), contraste = dolarApi() }:
+  { principal?: Respuesta; contraste?: Respuesta } = {},
+) {
+  const llamadas: string[] = [];
+
+  globalThis.fetch = (async (url: string) => {
+    const cuerpo = String(url).includes('dolarvzla') ? principal : contraste;
+    llamadas.push(String(url));
+
+    if (cuerpo === 'caida') throw new TypeError('fetch failed');
+
     return {
-      ok,
+      ok: cuerpo !== 'http-500',
       json: async () => {
-        if (respuesta instanceof Error) throw respuesta;
-        return respuesta;
+        if (cuerpo instanceof Error) throw cuerpo;
+        return cuerpo;
       },
-    } as Response;
+    } as unknown as Response;
   }) as typeof fetch;
+
   return llamadas;
 }
 
-beforeEach(() => stubFetch({ promedio: 757.5406, fechaActualizacion: '2026-08-11T09:00:00.000Z' }));
+beforeEach(() => stub());
 afterEach(() => {
   globalThis.fetch = fetchOriginal;
   mock.timers.reset();
 });
 
-// ---- Camino feliz -------------------------------------------------------
+// ---- Camino feliz --------------------------------------------------------
 
-test('devuelve la tasa y la fecha cuando la API responde bien', async () => {
-  const tasa = await obtenerTasaBcv();
-  assert.deepEqual(tasa, { rate: 757.5406, date: '2026-08-11', source: 'bcv' });
+test('con las dos fuentes de acuerdo, devuelve el dato contrastado', async () => {
+  const t = await obtenerTasaBcv();
+  assert.equal(t.source, 'bcv');
+  assert.equal(t.rate, USD);
+  assert.equal(t.date, '2026-10-13');
+  assert.equal(t.contrastada, true);
 });
 
-test('llama al endpoint oficial del BCV', async () => {
-  const llamadas = stubFetch({ promedio: 100 });
+test('pide las dos fuentes, no solo una', async () => {
+  const llamadas = stub();
   await obtenerTasaBcv();
-  assert.equal(llamadas[0][0], 'https://ve.dolarapi.com/v1/dolares/oficial');
+
+  assert.equal(llamadas.length, 2);
+  assert.ok(llamadas.some((u) => u.includes('dolarvzla')));
+  assert.ok(llamadas.some((u) => u.includes('dolarapi')));
 });
 
-test('respeta las opciones que le pasan, pero impone su propia señal', async () => {
-  const llamadas = stubFetch({ promedio: 100 });
-  const ajena = new AbortController().signal;
-  await obtenerTasaBcv({ signal: ajena, next: { revalidate: 3600 } } as RequestInit);
-
-  const init = llamadas[0][1] as RequestInit & { next?: unknown };
-  assert.deepEqual(init.next, { revalidate: 3600 });
-  assert.notEqual(init.signal, ajena);
+test('recoge el euro y el dia habil anterior', async () => {
+  const t = await obtenerTasaBcv();
+  assert.equal(t.eur, EUR);
+  assert.deepEqual(t.previous, { rate: USD_PREVIO, date: '2026-10-09' });
 });
 
-// ---- Regla 01: ninguna cifra es mejor que una inventada ------------------
+// ---- Fecha valor: el motivo del cambio de API ----------------------------
 
-test('fallback si la respuesta HTTP no es ok', async () => {
-  stubFetch({ promedio: 757 }, { ok: false });
+test('manda la fecha VALOR de la principal, no la de la fuente de contraste', async () => {
+  // Esto es lo que pasa un sabado: la de contraste se queda en el viernes
+  // mientras la principal ya adelanta al dia habil en que la tasa rige.
+  stub({ contraste: dolarApi(USD, '2026-10-09T00:00:00-04:00') });
+
+  const t = await obtenerTasaBcv();
+  assert.equal(t.date, '2026-10-13', 'debe ganar la fecha valor');
+  assert.equal(t.contrastada, true, 'discrepar en la fecha NO invalida el dato');
+});
+
+test('el dia habil anterior salta el fin de semana y el feriado', async () => {
+  const t = await obtenerTasaBcv();
+  // Del martes 13 al viernes 9: sin sabado 10, domingo 11 ni feriado 12.
+  assert.equal(t.previous?.date, '2026-10-09');
+});
+
+// ---- El contraste: lo que evita cobrar de mas ----------------------------
+
+test('si las fuentes discrepan mas del 5%, no se muestra ninguna cifra', async () => {
+  stub({ contraste: dolarApi(USD * 1.4) });
   assert.deepEqual(await obtenerTasaBcv(), TASA_RESPALDO);
 });
 
-test('fallback si la red falla', async () => {
-  globalThis.fetch = (async () => {
-    throw new TypeError('fetch failed');
-  }) as typeof fetch;
+test('CAZA que una fuente devuelva EUROS creyendo que son dolares', async () => {
+  // El error que un umbral del 15% dejaria pasar: el euro esta solo un 12%
+  // por encima del dolar, asi que colarse cobraria un 12% de mas.
+  assert.ok(diferenciaRelativa(USD, EUR) < 0.15, 'un umbral del 15% no lo cazaria');
+
+  stub({ contraste: dolarApi(EUR) });
+  assert.deepEqual(await obtenerTasaBcv(), TASA_RESPALDO, 'el del 5% si lo caza');
+});
+
+test('caza que una fuente devuelva centimos', async () => {
+  stub({ contraste: dolarApi(USD * 100) });
   assert.deepEqual(await obtenerTasaBcv(), TASA_RESPALDO);
 });
 
-test('fallback si el cuerpo no es JSON válido', async () => {
-  stubFetch(new SyntaxError('Unexpected token <'));
+test('el desfase normal entre dias habiles no bloquea nada', async () => {
+  // 0,131% real del viernes 9 al martes 13.
+  stub({ contraste: dolarApi(USD_PREVIO) });
+
+  const t = await obtenerTasaBcv();
+  assert.equal(t.source, 'bcv');
+  assert.equal(t.contrastada, true);
+});
+
+// ---- Cuando una fuente se cae -------------------------------------------
+
+test('si solo responde la principal, sirve el dato marcado sin contrastar', async () => {
+  stub({ contraste: 'caida' });
+
+  const t = await obtenerTasaBcv();
+  assert.equal(t.source, 'bcv');
+  assert.equal(t.rate, USD);
+  assert.equal(t.date, '2026-10-13');
+  assert.equal(t.contrastada, false);
+});
+
+test('si solo responde la de contraste, tambien sirve', async () => {
+  stub({ principal: 'caida' });
+
+  const t = await obtenerTasaBcv();
+  assert.equal(t.source, 'bcv');
+  assert.equal(t.rate, USD);
+  assert.equal(t.contrastada, false);
+  assert.equal(t.previous, null, 'esa fuente no da el dia anterior');
+});
+
+test('si se caen las dos, fallback', async () => {
+  stub({ principal: 'caida', contraste: 'caida' });
   assert.deepEqual(await obtenerTasaBcv(), TASA_RESPALDO);
 });
 
-test('el respaldo nunca invita a mostrar bolívares', () => {
+test('un HTTP 500 cuenta como caida, no como dato', async () => {
+  stub({ principal: 'http-500', contraste: 'http-500' });
+  assert.deepEqual(await obtenerTasaBcv(), TASA_RESPALDO);
+});
+
+test('un cuerpo que no es JSON valido cuenta como caida', async () => {
+  stub({ principal: new SyntaxError('<html>'), contraste: new SyntaxError('<html>') });
+  assert.deepEqual(await obtenerTasaBcv(), TASA_RESPALDO);
+});
+
+test('el respaldo nunca invita a mostrar bolivares', () => {
   assert.equal(TASA_RESPALDO.source, 'fallback');
   assert.equal(TASA_RESPALDO.rate, 0);
+  assert.equal(TASA_RESPALDO.contrastada, false);
 });
 
-// ---- La línea que valida el número --------------------------------------
+// ---- La validacion que no hay que borrar --------------------------------
 
-test('rechaza una tasa que no es número', () => {
-  assert.equal(convertir({ promedio: '757,54' }), null);
-});
+test('rechaza tasas que no son numeros usables', () => {
+  const malos = ['876,79', null, undefined, Number.NaN, Number.POSITIVE_INFINITY, 0, -5];
 
-test('rechaza cero y negativos', () => {
-  assert.equal(convertir({ promedio: 0 }), null);
-  assert.equal(convertir({ promedio: -5 }), null);
-});
-
-test('rechaza NaN e Infinity', () => {
-  assert.equal(convertir({ promedio: Number.NaN }), null);
-  assert.equal(convertir({ promedio: Number.POSITIVE_INFINITY }), null);
+  for (const malo of malos) {
+    assert.equal(
+      convertirPrincipal({ current: { usd: malo, date: '2026-10-13' } }), null,
+      `deberia rechazar ${String(malo)}`,
+    );
+  }
 });
 
 test('rechaza una tasa por encima del techo de cordura', () => {
-  assert.equal(convertir({ promedio: 1_000_001 }), null);
-  assert.notEqual(convertir({ promedio: 1_000_000 }), null);
+  assert.equal(convertirPrincipal({ current: { usd: 1_000_001, date: '2026-10-13' } }), null);
+  assert.notEqual(convertirPrincipal({ current: { usd: 1_000_000, date: '2026-10-13' } }), null);
 });
 
-test('rechaza respuestas vacías o sin el campo', () => {
-  assert.equal(convertir(null), null);
-  assert.equal(convertir(undefined), null);
-  assert.equal(convertir({}), null);
-  assert.equal(convertir({ error: 'not found' }), null);
+test('rechaza respuestas vacias o con otra forma', () => {
+  assert.equal(convertirPrincipal(null), null);
+  assert.equal(convertirPrincipal({}), null);
+  assert.equal(convertirPrincipal({ error: 'not found' }), null);
+  assert.equal(convertirContraste({ promedio: 'raro' }), null);
 });
 
-test('una tasa rechazada acaba en fallback, no en excepción', async () => {
-  stubFetch({ promedio: 'raro' });
-  assert.deepEqual(await obtenerTasaBcv(), TASA_RESPALDO);
+// ---- Fechas --------------------------------------------------------------
+
+test('sin fecha valor usable, la principal no sirve', () => {
+  // Sin fecha no hay fecha valor, y la fecha valor es el motivo de usar esta
+  // fuente. Inventar "hoy" aqui seria volver al problema de origen.
+  assert.equal(convertirPrincipal({ current: { usd: USD } }), null);
+  assert.equal(convertirPrincipal({ current: { usd: USD, date: '13/10/2026' } }), null);
 });
 
-// ---- Fecha ---------------------------------------------------------------
-
-test('recorta la fecha de la API a YYYY-MM-DD', () => {
-  const tasa = convertir({ promedio: 100, fechaActualizacion: '2026-08-11T13:45:02.000Z' });
-  assert.equal(tasa?.date, '2026-08-11');
+test('recorta la marca de tiempo de la fuente de contraste', () => {
+  const t = convertirContraste(dolarApi(USD, '2026-10-13T00:00:00-04:00'));
+  assert.equal(t?.date, '2026-10-13');
 });
 
-test('usa la fecha de hoy si la API no manda fecha usable', () => {
-  const hoy = new Date().toISOString().slice(0, 10);
-  assert.equal(convertir({ promedio: 100 })?.date, hoy);
-  assert.equal(convertir({ promedio: 100, fechaActualizacion: 12345 })?.date, hoy);
+test('descarta un dia anterior incompleto en vez de inventarlo', () => {
+  const t = convertirPrincipal({
+    current: { usd: USD, date: '2026-10-13' },
+    previous: { usd: USD_PREVIO },
+  });
+  assert.equal(t?.previous, null);
 });
 
-// ---- Regla 03: cinco segundos y se abandona ------------------------------
+test('descarta un euro invalido pero conserva el dolar', () => {
+  const t = convertirPrincipal({ current: { usd: USD, eur: 'raro', date: '2026-10-13' } });
+  assert.equal(t?.rate, USD);
+  assert.equal(t?.eur, null);
+});
+
+// ---- Cinco segundos y se abandona ---------------------------------------
 
 test('aborta a los 5 segundos y devuelve fallback', async () => {
   mock.timers.enable({ apis: ['setTimeout'] });
@@ -128,7 +238,7 @@ test('aborta a los 5 segundos y devuelve fallback', async () => {
   globalThis.fetch = ((_url: string, init?: RequestInit) =>
     new Promise((_resolver, rechazar) => {
       init?.signal?.addEventListener('abort', () =>
-        rechazar(new DOMException('This operation was aborted', 'AbortError')));
+        rechazar(new DOMException('aborted', 'AbortError')));
     })) as typeof fetch;
 
   const pendiente = obtenerTasaBcv();
@@ -137,19 +247,24 @@ test('aborta a los 5 segundos y devuelve fallback', async () => {
   assert.deepEqual(await pendiente, TASA_RESPALDO);
 });
 
-test('no aborta antes de los 5 segundos', async () => {
+test('una fuente colgada no arrastra a la otra', async () => {
   mock.timers.enable({ apis: ['setTimeout'] });
 
-  let abortada = false;
-  globalThis.fetch = ((_url: string, init?: RequestInit) =>
-    new Promise((resolver) => {
-      init?.signal?.addEventListener('abort', () => { abortada = true; });
-      queueMicrotask(() => resolver({ ok: true, json: async () => ({ promedio: 757 }) } as Response));
-    })) as typeof fetch;
+  globalThis.fetch = ((url: string, init?: RequestInit) => {
+    if (String(url).includes('dolarvzla')) {
+      return new Promise((_r, rechazar) => {
+        init?.signal?.addEventListener('abort', () =>
+          rechazar(new DOMException('aborted', 'AbortError')));
+      });
+    }
+    return Promise.resolve({ ok: true, json: async () => dolarApi() } as Response);
+  }) as typeof fetch;
 
   const pendiente = obtenerTasaBcv();
-  mock.timers.tick(4999);
+  mock.timers.tick(5000);
 
-  assert.equal((await pendiente).source, 'bcv');
-  assert.equal(abortada, false);
+  const t = await pendiente;
+  assert.equal(t.source, 'bcv', 'la fuente sana debe salvar la peticion');
+  assert.equal(t.rate, USD);
+  assert.equal(t.contrastada, false);
 });

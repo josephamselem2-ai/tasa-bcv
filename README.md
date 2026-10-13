@@ -4,7 +4,7 @@ Muestra precios en bolívares al cambio oficial del día, en cualquier web.
 Módulo sin dependencias + guía paso a paso para quien no programa.
 
 **[→ Ver la demo en vivo](https://josephamselem2-ai.github.io/tasa-bcv/)** ·
-21 tests · sin dependencias de runtime · MIT
+29 tests · dos fuentes contrastadas · sin dependencias de runtime · MIT
 
 <!-- La demo se publica sola con .github/workflows/pages.yml -->
 
@@ -35,19 +35,60 @@ tasa.source === 'bcv'
 ```
 
 Hay un test que falla si alguien rompe esa regla, y el CI maneja la demo en un
-navegador real para comprobar que con la API caída no aparece ningún `Bs.` en
-pantalla.
+navegador real para comprobar que con las fuentes caídas no aparece ningún
+`Bs.` en pantalla.
 
-## Otras tres decisiones que no son obvias
+## La trampa de la fecha
+
+Casi todas las APIs del dólar BCV devuelven la tasa etiquetada con **la fecha
+en que se publicó**, no con **la fecha en que rige**. Son cosas distintas.
+
+El BCV publica al cierre de cada día hábil, y esa tasa tiene **fecha valor del
+día hábil siguiente**. Lo que sale el viernes por la tarde es la tasa del lunes.
+
+Si tu fuente etiqueta por publicación, el sábado y el domingo sigues enseñando
+«la tasa del viernes» cuando la que aplica ya es la del lunes. Con un feriado
+de por medio puedes arrastrar tres o cuatro días.
+
+Por eso la fuente principal es `rates.dolarvzla.com`, que etiqueta por fecha
+valor. Se ve en el campo `previous`:
+
+```json
+{ "current":  { "date": "2026-10-13", "usd": 876.7976 },
+  "previous": { "date": "2026-10-09", "usd": 875.6505 } }
+```
+
+Del martes 13 salta al viernes 9: sin sábado, sin domingo y sin el feriado del
+lunes 12. Son días hábiles reales, no días de calendario.
+
+## Otras cuatro decisiones que no son obvias
+
+**Dos fuentes, y un margen del 5%.** Esto decide cuántos bolívares transfiere
+un cliente, así que se consultan dos APIs en paralelo y se contrastan. Si
+discrepan más de un 5%, no se muestra nada.
+
+El margen no es arbitrario, y el número intuitivo está mal:
+
+| | |
+| --- | --- |
+| Salto real entre días hábiles | 0,131% |
+| Diferencia entre el euro y el dólar | 12,00% |
+
+Un margen del 15% **no** cazaría que una fuente devolviera euros creyendo que
+son dólares — cobrarías un 12% de más, en silencio. Con 5% sí se caza, y sigue
+siendo 38 veces el movimiento normal de un día. Hay un test dedicado a eso.
+
+Se contrastan los **valores**, no las fechas: que discrepen en la fecha es lo
+esperado un fin de semana, y es justo para lo que está la fuente principal.
 
 **Un techo de cordura en la validación.** Se rechaza cualquier tasa fuera de
-`(0, 1.000.000]`. Si DolarAPI cambiara de escala, $100 pasarían a ser millones
+`(0, 1.000.000]`. Si una API cambiara de escala, $100 pasarían a ser millones
 de bolívares sin que nada avisara. Es una línea que parece sobrante y es la que
 evita el desastre.
 
 **El fallback no se cachea.** El dato bueno se guarda una hora; un fallo, no.
 Cachear el fallo dejaría la web una hora entera sin bolívares por un tropiezo
-puntual de la API.
+puntual de una API.
 
 **Contexto, no store global.** Repartir la tasa con un store sembrado durante
 el render hace que el HTML del servidor salga *sin* bolívares y el precio
@@ -98,22 +139,28 @@ Si tu proyecto es JavaScript sin TypeScript, usa el compilado
 
 ```bash
 npm install
-npm test          # 21 tests, sin red
+npm test          # 29 tests, sin red
 npm run typecheck
 npm run demo      # la guía en http://localhost:4173
 node scripts/verificar-demo.mjs   # la maneja en un navegador real
 ```
 
-Los tests cubren el camino feliz, los cinco modos de fallo, cada rama de la
-validación, el timeout de 5 s y el caché — incluido que un `fallback` **no** se
-cachea.
+Los tests cubren el camino feliz, los modos de fallo de cada fuente por
+separado, cada rama de la validación, el timeout de 5 s y el caché. Tres de
+ellos existen para fijar decisiones que es fácil deshacer sin querer:
+
+- que la fecha valor de la fuente principal gana aunque la otra discrepe
+- que un euro colado como dólar se caza (lo que un margen del 15% no haría)
+- que una fuente colgada no arrastra a la otra
 
 ## Letra pequeña
 
-Los datos vienen de [DolarAPI](https://ve.dolarapi.com), gratuito y sin clave.
-Es un servicio de terceros: si cerrara, la web no se rompe (oculta los
-bolívares y sigue enseñando dólares), pero pierdes la conversión hasta apuntar
-a otra fuente. Razón de más para guardar el histórico.
+Los datos vienen de [DolarVZLA](https://rates.dolarvzla.com/bcv/current.json)
+contrastado con [DolarAPI](https://ve.dolarapi.com). Las dos son gratuitas, sin
+clave y con CORS abierto. Son servicios de terceros: por eso se consultan los
+dos, para que la caída de uno no te deje sin conversión. Si cayeran los dos, la
+web no se rompe (oculta los bolívares y sigue enseñando dólares). Razón de más
+para guardar el histórico.
 
 Es la **tasa oficial del BCV**, no la del paralelo. Si tu negocio cobra a otra
 tasa, este número no te sirve tal cual.

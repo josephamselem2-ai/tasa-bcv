@@ -3,36 +3,67 @@
 
   Para webs que te dejan insertar un bloque de código: HTML normal, WordPress,
   Wix, Squarespace, Shopify, Tiendanube. No hace falta instalar nada, ni
-  registrarse, ni ninguna clave. La API permite llamadas desde el navegador de
-  cualquier web (Access-Control-Allow-Origin: *).
+  registrarse, ni ninguna clave. Las dos APIs permiten llamadas desde el
+  navegador de cualquier web (Access-Control-Allow-Origin: *).
+
+  Pregunta a DOS fuentes a la vez y las compara. Si no se parecen, no muestra
+  nada: más vale no enseñar cifra que enseñar una equivocada.
 
   Muestra "Al cambio del BCV del día" mientras carga, y lo sustituye por la
   cifra en cuanto llega. Se actualiza sola cada hora.
 -->
-<span id="tasa">Al cambio del BCV del día</span>
+<span id="tasa-bcv">Al cambio del BCV del día</span>
 
 <script>
-async function pintarTasa() {
-  const c = new AbortController();
-  const t = setTimeout(() => c.abort(), 5000);
-  try {
-    const r = await fetch('https://ve.dolarapi.com/v1/dolares/oficial',
-                          { signal: c.signal });
-    if (!r.ok) return;
-    const d = await r.json();
-    const tasa = d?.promedio;
-    // NO BORRES ESTA LÍNEA. Sin validar, un dato raro pinta un precio absurdo.
-    if (typeof tasa !== 'number' || !isFinite(tasa) || tasa <= 0 || tasa > 1000000) return;
+async function pintarTasaBcv() {
+  // Cuánto pueden discrepar las dos fuentes antes de no mostrar nada.
+  // 5% y no 15%: el euro cotiza solo un 12% por encima del dólar, así que con
+  // 15% una fuente que devolviera euros pasaría y cobrarías un 12% de más.
+  var LIMITE = 0.05;
 
-    document.getElementById('tasa').textContent =
-      'Bs. ' + tasa.toLocaleString('es-VE', { minimumFractionDigits: 2 });
-  } catch {
-    // Se queda el texto de siempre. No se inventa nada.
-  } finally {
-    clearTimeout(t);
+  async function pedir(url, sacar) {
+    var c = new AbortController();
+    var t = setTimeout(function () { c.abort(); }, 5000);
+    try {
+      var r = await fetch(url, { signal: c.signal });
+      if (!r.ok) return null;
+      var v = sacar(await r.json());
+      // NO BORRES ESTA LÍNEA. Sin validar, un dato raro pinta un precio absurdo.
+      return (typeof v === 'number' && isFinite(v) && v > 0 && v <= 1000000) ? v : null;
+    } catch (e) {
+      return null;
+    } finally {
+      clearTimeout(t);
+    }
   }
+
+  var pareja = await Promise.all([
+    pedir('https://rates.dolarvzla.com/bcv/current.json', function (d) {
+      return d && d.current && d.current.usd;
+    }),
+    pedir('https://ve.dolarapi.com/v1/dolares/oficial', function (d) {
+      return d && d.promedio;
+    })
+  ]);
+
+  var principal = pareja[0], contraste = pareja[1];
+
+  // Las dos respondieron pero no se parecen: una de ellas miente. No se
+  // muestra ninguna, porque no hay forma de saber cuál es la buena.
+  if (principal !== null && contraste !== null) {
+    var diferencia = Math.abs(principal - contraste) / Math.min(principal, contraste);
+    if (diferencia > LIMITE) return;
+  }
+
+  var tasa = principal !== null ? principal : contraste;
+
+  // Ninguna respondió: se queda el texto de siempre. No se inventa nada.
+  if (tasa === null) return;
+
+  document.getElementById('tasa-bcv').textContent =
+    'Bs. ' + tasa.toLocaleString('es-VE', { minimumFractionDigits: 2 });
 }
 
-pintarTasa();
-setInterval(pintarTasa, 3600000);
+pintarTasaBcv();
+setInterval(pintarTasaBcv, 3600000);
 </script>
